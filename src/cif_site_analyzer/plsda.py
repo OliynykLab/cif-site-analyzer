@@ -6,6 +6,8 @@ from cif_site_analyzer.config import FEATURE_GROUPS_PLSDA
 from matplotlib.patches import Ellipse
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.cross_decomposition import PLSRegression
+from collections import defaultdict
+import matplotlib.patches as patches
 
 
 def plot_confidence_ellipse(
@@ -185,7 +187,10 @@ def plot_loadings(loadings_df, explained_ratio):
 
     plt.clf()
     plt.close("all")
-    plt.style.use("ggplot")
+    plt.style.use("default")
+
+    fig, ax = plt.subplots()
+
     xr = (
         loadings_df["Component_1_Loading"].max()
         - loadings_df["Component_1_Loading"].min()
@@ -196,11 +201,15 @@ def plot_loadings(loadings_df, explained_ratio):
     )
 
     added_legends = []
+    group_points = defaultdict(list)
     for i, (_, row) in enumerate(loadings_df.iterrows(), 1):
         gname = FEATURE_GROUPS_PLSDA[row["Feature"]]
 
+        group_points[gname].append(
+            [row["Component_1_Loading"], row["Component_2_Loading"]]
+        )
         if gname in added_legends:
-            plt.scatter(
+            ax.scatter(
                 row["Component_1_Loading"],
                 row["Component_2_Loading"],
                 color=colors[gname],
@@ -208,7 +217,7 @@ def plot_loadings(loadings_df, explained_ratio):
                 alpha=0.5,
             )
         else:
-            plt.scatter(
+            ax.scatter(
                 row["Component_1_Loading"],
                 row["Component_2_Loading"],
                 color=colors[gname],
@@ -219,15 +228,37 @@ def plot_loadings(loadings_df, explained_ratio):
 
             added_legends.append(gname)
 
-        plt.text(
+        ax.text(
             row["Component_1_Loading"] - xr * 0.015,
             row["Component_2_Loading"] - yr * 0.013,
             s=f"{i:02}",
             fontsize=8,
         )
 
-    plt.xlabel(f"LV1 ({explained_ratio[0]:.1f}%)")
-    plt.ylabel(f"LV2 ({explained_ratio[1]:.1f}%)")
+    for gname, vals in group_points.items():
+        vals = np.array(vals)
+        center = np.mean(vals, axis=0).tolist()
+
+        cov = np.cov(vals[:, 0], vals[:, 1])
+        vals, vecs = np.linalg.eigh(cov)
+        height, width = np.sqrt(5.991) * np.sqrt(vals)
+        angle = np.degrees(np.arctan2(*vecs[:, 1][::-1]))
+
+        ellipse = patches.Ellipse(
+            xy=center,
+            width=width,
+            height=height,
+            angle=angle,
+            edgecolor="none",
+            facecolor=colors[gname],
+            alpha=0.2,
+        )
+
+        ax.add_patch(ellipse)
+
+    plt.xlabel(f"LV1 ({explained_ratio[0]:.1f} %)")
+    plt.ylabel(f"LV2 ({explained_ratio[1]:.1f} %)")
+    plt.grid(visible=False)
 
     plt.legend(
         loc="lower center",
