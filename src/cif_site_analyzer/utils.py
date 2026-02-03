@@ -13,6 +13,11 @@ with importlib.resources.as_file(
 all_elements = features["Symbol"].tolist()
 MNs = dict(zip(all_elements, features["Mendeleev number"].tolist()))
 
+# add actinides for handling prototypes with elements for which
+# features are not available
+for e, mn in [["Ac", 14], ["Pa", 18], ["Np", 22], ["Pu", 24], ["Am", 26]]:
+    MNs[e] = mn
+
 
 def get_colors(colors, name_map):
     print("The colors for the different groups are: ")

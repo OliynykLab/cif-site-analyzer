@@ -1,5 +1,6 @@
 from .get_data import load_cif
 from .get_data import select_one_stype
+from .get_data import add_average_coordinates
 from .get_data import prepare_data_for_engine
 from .utils import get_ptable_vals_dict
 from .utils import list_to_formula
@@ -131,7 +132,9 @@ def main():
     else:
         selected_stype = list(stypes.keys())[0]
 
-    data_for_engine = prepare_data_for_engine(cif_data, selected_stype)
+    data_for_engine, coordinate_data = prepare_data_for_engine(
+        cif_data, selected_stype
+    )
     os.makedirs("outputs/heatmaps", exist_ok=True)
     os.makedirs("outputs/heatmaps/individual", exist_ok=True)
     os.makedirs("outputs/plots", exist_ok=True)
@@ -183,7 +186,11 @@ def main():
     if interactive:
         colors = get_colors(colors, name_map)
 
-    data_df_w_groups.to_csv(f"outputs/csv/{selected_stype}.csv", index=False)
+    # add average coordinates
+    raw_data_output = add_average_coordinates(
+        data_df_w_groups.copy(deep=True), coordinate_data
+    )
+    raw_data_output.to_csv(f"outputs/csv/{selected_stype}.csv", index=False)
 
     print("\nGenerating periodic table heatmaps...")
     for i, (k, v) in enumerate(site_assignment.items()):
