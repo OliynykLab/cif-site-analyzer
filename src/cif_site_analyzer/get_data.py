@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import os
 from .cif_reader import read_cif
 from collections import defaultdict
@@ -7,12 +8,95 @@ from collections import Counter
 
 def load_cif(path, elements=None, dev=False):
 
+    allowed_elements = set(
+        [
+            "Li",
+            "Be",
+            "B",
+            "C",
+            "N",
+            "O",
+            "F",
+            "Na",
+            "Mg",
+            "Al",
+            "Si",
+            "P",
+            "S",
+            "Cl",
+            "K",
+            "Ca",
+            "Sc",
+            "Ti",
+            "V",
+            "Cr",
+            "Mn",
+            "Fe",
+            "Co",
+            "Ni",
+            "Cu",
+            "Zn",
+            "Ga",
+            "Ge",
+            "As",
+            "Se",
+            "Br",
+            "Rb",
+            "Sr",
+            "Y",
+            "Zr",
+            "Nb",
+            "Mo",
+            "Tc",
+            "Ru",
+            "Rh",
+            "Pd",
+            "Ag",
+            "Cd",
+            "In",
+            "Sn",
+            "Sb",
+            "Te",
+            "I",
+            "Cs",
+            "Ba",
+            "La",
+            "Ce",
+            "Pr",
+            "Nd",
+            "Pm",
+            "Sm",
+            "Eu",
+            "Gd",
+            "Tb",
+            "Dy",
+            "Ho",
+            "Er",
+            "Tm",
+            "Yb",
+            "Lu",
+            "Hf",
+            "Ta",
+            "W",
+            "Re",
+            "Os",
+            "Ir",
+            "Pt",
+            "Au",
+            "Hg",
+            "Tl",
+            "Pb",
+            "Bi",
+            "Th",
+            "U",
+        ]
+    )
+
     if not os.path.isdir(path):
         print(f"Path {path} not found!")
 
     data = []
     cifs = [cif for cif in os.listdir(path) if cif.endswith("cif")]
-
     for cif_name in cifs:
         try:
             cif = read_cif(f"{path}{os.sep}{cif_name}")
@@ -21,6 +105,17 @@ def load_cif(path, elements=None, dev=False):
                     elements
                 ):
                     continue
+
+            missing_elements = set(cif.elements) - allowed_elements
+            if len(missing_elements):
+                print(
+                    f"{cif_name} contains {', '.join(list(missing_elements))} \
+                        for which features are not available. \
+                    \nPlease update the elemental-property-list.csv \
+                    to include these elements."
+                )
+                continue
+
             data.append(
                 {
                     "Formula": cif.formula,
@@ -61,6 +156,7 @@ def prepare_data_for_engine(cif_data, selected_stype):
     sort_sites = any([v > 1 for k, v in symbol_counts.items()])
 
     data = []
+    coordinate_data = []
     for cif in selected_data:
         site_data = cif.pop("sites")
 
@@ -132,6 +228,8 @@ def prepare_data_for_engine(cif_data, selected_stype):
             else:
                 cif[site_symbol] = [comp]
 
+            coordinate_data.append([site_symbol, site_coords])
+
         for k in cif.keys():
             if k not in [
                 "Formula",
@@ -142,7 +240,35 @@ def prepare_data_for_engine(cif_data, selected_stype):
                 cif[k] = "".join(cif[k])
         data.append(cif)
 
-    return data
+    return data, coordinate_data
+
+
+def add_average_coordinates(df, coordinate_data):
+    # calculate average coordinates and add to df
+    wyckoff_site_coords = defaultdict(list)
+    for wys, coord in coordinate_data:
+        wyckoff_site_coords[wys].append(coord)
+
+    avg_coords = {}
+    for k, v in wyckoff_site_coords.items():
+        vals = np.array(v)
+        avg_coords[k] = f"{vals.mean():.4f} ({vals.std():.4f})"
+
+    row = {
+        "Filename": "avg coords",
+        "Formula": "",
+        "Entry prototype": "",
+        "num_elements": "",
+    }
+    for k, v in avg_coords.items():
+        row[k] = v
+
+    for colname in df.columns[4 + len(avg_coords) :]:
+        row[colname] = ""
+
+    row = pd.DataFrame([row])
+    df = pd.concat([row, df], ignore_index=True)
+    return df
 
 
 if __name__ == "__main__":
