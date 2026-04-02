@@ -211,7 +211,9 @@ def prepare_data_for_engine(cif_data, selected_stype):
                         f"{int(site['multiplicity'])}{site['Wyckoff_symbol']}"
                     ] = [site_coords]
                 elif np.any(dist_to_others <= 1e-4):
-                    sym_count = int(np.where(dist_to_others <= 1e-4)[0]) + 1
+                    sym_count = (
+                        int(np.where(dist_to_others <= 1e-4)[0].squeeze()) + 1
+                    )
                     site_symbol = f"{site_symbol} ({sym_count})"
                 else:
                     sym_count = len(dist_to_others) + 1
