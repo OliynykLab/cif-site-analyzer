@@ -211,7 +211,9 @@ def prepare_data_for_engine(cif_data, selected_stype):
                         f"{int(site['multiplicity'])}{site['Wyckoff_symbol']}"
                     ] = [site_coords]
                 elif np.any(dist_to_others <= 1e-4):
-                    sym_count = int(np.where(dist_to_others <= 1e-4)[0]) + 1
+                    sym_count = (
+                        int(np.where(dist_to_others <= 1e-4)[0].squeeze()) + 1
+                    )
                     site_symbol = f"{site_symbol} ({sym_count})"
                 else:
                     sym_count = len(dist_to_others) + 1
@@ -252,7 +254,12 @@ def add_average_coordinates(df, coordinate_data):
     avg_coords = {}
     for k, v in wyckoff_site_coords.items():
         vals = np.array(v)
-        avg_coords[k] = f"{vals.mean():.4f} ({vals.std():.4f})"
+        cm = vals.mean(axis=0)
+        cs = vals.std(axis=0)
+        avg_coords[k] = (
+            f"{cm[0]:.4f} ({cs[0]:.4f}), {cm[1]:.4f} \
+                ({cs[1]:.4f}), {cm[2]:.4f} ({cs[2]:.4f})"
+        )
 
     row = {
         "Filename": "avg coords",
